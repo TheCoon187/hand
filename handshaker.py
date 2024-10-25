@@ -9,57 +9,48 @@ SCAN_TIME = 60  # Zeit für Netzwerkscan in Sekunden
 HANDSHAKE_WAIT_TIME = 60  # Zeit für Handshake-Erfassung pro Netzwerk
 
 def setup():
-    # Handshake-Verzeichnis erstellen, falls es nicht existiert
     os.makedirs(HANDSHAKE_DIR, exist_ok=True)
 
 def scan_networks():
-    print("[*] Starte Netzwerkscan...")
+    print("[*] Starte Netzwerkscan mit tcpdump...")
     scan_process = subprocess.Popen(
-        ["sudo", "airodump-ng", "--band", "abg", "-w", HANDSHAKE_DIR + "/scan", "--output-format", "pcapng", INTERFACE],
+        ["sudo", "tcpdump", "-i", INTERFACE, "-w", HANDSHAKE_DIR + "/scan.pcap"],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
     )
     time.sleep(SCAN_TIME)
     scan_process.terminate()
-    return HANDSHAKE_DIR + "/scan-01.csv"
+    return HANDSHAKE_DIR + "/scan.pcap"
 
 def parse_networks(scan_file):
-    networks = []
-    with open(scan_file, "r", encoding='ISO-8859-1') as f:  # Verwendung von ISO-8859-1 Encoding
-        for line in f:
-            if "WPA" in line and "WPA2" in line:
-                fields = line.split(',')
-                if len(fields) > 1:
-                    bssid = fields[0].strip()
-                    channel = fields[3].strip()
-                    networks.append((bssid, channel))
-    print(f"[*] {len(networks)} Netzwerke gefunden.")
-    return networks
+    # Alternative Methode, um Netzwerke in der pcap-Datei zu finden.
+    print(f"[*] Netzwerkscan abgeschlossen, Ergebnisse in {scan_file}")
+    # Hinweis: Die spezifische Netzwerk- und Handshake-Erkennung entfällt hier
+    return [(None, None)]  # Eintrag für die Erfassung eines generellen Handshakes
 
 def capture_handshake(bssid, channel):
-    print(f"[*] Erfasse Handshake für {bssid} auf Kanal {channel}...")
-    airodump_cmd = [
-        "sudo", "airodump-ng", "-c", channel, "--bssid", bssid, "-w",
-        f"{HANDSHAKE_DIR}/{bssid}", INTERFACE
+    print(f"[*] Erfasse Handshake...")
+    tcpdump_cmd = [
+        "sudo", "tcpdump", "-i", INTERFACE, "-w",
+        f"{HANDSHAKE_DIR}/handshake.pcap"
     ]
-    airodump_process = subprocess.Popen(airodump_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    tcpdump_process = subprocess.Popen(tcpdump_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(HANDSHAKE_WAIT_TIME)
-    airodump_process.terminate()
+    tcpdump_process.terminate()
 
 def convert_and_cleanup():
     print("[*] Konvertiere und bereinige Dateien...")
-    cap_files = glob.glob(f"{HANDSHAKE_DIR}/*.pcapng")
-    if not cap_files:
-        print("[!] Keine .pcapng-Dateien gefunden.")
+    pcap_files = glob.glob(f"{HANDSHAKE_DIR}/*.pcap")
+    if not pcap_files:
+        print("[!] Keine .pcap-Dateien gefunden.")
         return
-    # Erstelle eine einzige .hccapx Datei aus allen .pcapng Dateien
     hccapx_file = os.path.join(HANDSHAKE_DIR, "handshake.hccapx")
-    conversion_cmd = ["hcxpcapngtool", "-o", hccapx_file] + cap_files
+    conversion_cmd = ["hcxpcapngtool", "-o", hccapx_file] + pcap_files
     subprocess.call(conversion_cmd)
     print(f"[*] Handshake-Datei erstellt: {hccapx_file}")
-    # Lösche alle .pcapng-Dateien nach der Konvertierung
-    for cap_file in cap_files:
-        os.remove(cap_file)
-    print("[*] Alle .pcapng-Dateien wurden gelöscht.")
+    # Lösche alle .pcap-Dateien nach der Konvertierung
+    for pcap_file in pcap_files:
+        os.remove(pcap_file)
+    print("[*] Alle .pcap-Dateien wurden gelöscht.")
 
 def main():
     setup()
