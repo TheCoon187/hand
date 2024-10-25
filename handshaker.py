@@ -16,12 +16,12 @@ def setup():
 def scan_networks():
     print("[*] Starte Netzwerkscan...")
     scan_process = subprocess.Popen(
-        ["sudo", "airodump-ng", "--band", "abg", "-w", HANDSHAKE_DIR + "/scan", "--output-format", "csv", INTERFACE],
+        ["sudo", "airodump-ng", "--band", "abg", "-w", HANDSHAKE_DIR + "/scan", "--output-format", "cap", INTERFACE],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
     )
     time.sleep(SCAN_TIME)
     scan_process.terminate()
-    return HANDSHAKE_DIR + "/scan-01.csv"
+    return HANDSHAKE_DIR + "/scan-01.cap"  # Stelle sicher, dass die .cap-Datei zurückgegeben wird
 
 def parse_networks(scan_file):
     networks = []
@@ -74,7 +74,7 @@ def capture_handshake(bssid, channel):
 
 def convert_and_cleanup():
     print("[*] Konvertiere und bereinige Dateien...")
-    cap_files = glob.glob(f"{HANDSHAKE_DIR}/*.cap")
+    cap_files = glob.glob(f"{HANDSHAKE_DIR}/*.cap")  # Suche nach .cap-Dateien
     if not cap_files:
         print("[!] Keine .cap-Dateien gefunden.")
         return
